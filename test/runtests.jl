@@ -42,7 +42,9 @@ include("test_util.jl")
     println("space_time:")
     @testset "space_time" begin
         include(joinpath("space_time", "rectilinear_grid.jl"))
+        include(joinpath("space_time", "regular_in_time.jl"))
         include(joinpath("space_time", "separable_kernel.jl"))
         include(joinpath("space_time", "to_gauss_markov.jl"))
+        include(joinpath("space_time", "dtc.jl"))
     end
 end

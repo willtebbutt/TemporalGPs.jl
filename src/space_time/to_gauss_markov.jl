@@ -37,3 +37,15 @@ function (f::LTISDE)(x::SpaceTimeGrid, σ²::Real)
 end
 
 (f::LTISDE)(x::SpaceTimeGrid) = f(x, 0.0)
+
+function (f::LTISDE)(x::RegularInTime, Σs::AV{<:AM{<:Real}})
+    return LGSSM(GaussMarkovModel(f.f.k, x, f.storage), Σs)
+end
+
+function (f::LTISDE)(x::RegularInTime, σ²::Real)
+    Σ = Diagonal(Fill(σ², length(x.xl)))
+    Σs = Fill(collect(Σ), length(x.xr))
+    return f(x, Σs)
+end
+
+(f::LTISDE)(x::RegularInTime) = f(x, 0.0)
