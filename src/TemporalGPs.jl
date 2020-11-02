@@ -52,5 +52,6 @@ module TemporalGPs
     include(joinpath("space_time", "separable_kernel.jl"))
     include(joinpath("space_time", "to_gauss_markov.jl"))
     include(joinpath("space_time", "dtc.jl"))
+    include(joinpath("space_time", "elbo.jl"))
 
 end # module

@@ -17,7 +17,7 @@ function GaussMarkovModel(k_dtc::DTCSeparable, x::SpaceTimeGrid, storage)
     time_kernel = k.r
     gmm_time = GaussMarkovModel(time_kernel, ts, storage)
 
-    # Compute spatial covariance between inducing inputs, and ioducing points + obs. points.
+    # Compute spatial covariance between inducing inputs, and inducing points + obs. points.
     space_kernel = k.l
     x_space = x.xl
     z_space = k_dtc.z
@@ -56,7 +56,7 @@ function GaussMarkovModel(k_dtc::DTCSeparable, x::RegularInTime, storage)
     time_kernel = k.r
     gmm_time = GaussMarkovModel(time_kernel, ts, storage)
 
-    # Compute spatial covariance between inducing inputs, and ioducing points + obs. points.
+    # Compute spatial covariance between inducing inputs, and inducing points + obs. points.
     space_kernel = k.l
     z_space = k_dtc.z
     K_space_z = pw(space_kernel, z_space)
