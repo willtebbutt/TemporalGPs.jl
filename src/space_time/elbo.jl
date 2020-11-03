@@ -1,4 +1,26 @@
 """
+    elbo(
+        k::Separable,
+        x::AbstractVector,
+        y::AbstractVector,
+        z::AbstractVector,
+        S::AbstractVector,
+    )
+
+This is a bodge while I improve the API generally.
+"""
+function elbo(
+    k::Separable,
+    x::AbstractVector,
+    y::AbstractVector,
+    z::AbstractVector,
+    S::AbstractVector,
+)
+    f = to_sde(GP(DTCSeparable(z, k), GPC()))
+    return logpdf(f(x, S), y) + trace_term(k, x, y, z, S, ArrayStorage(Float64))
+end
+
+"""
     trace_term(k::Separable, x::AbstractVector, y::AbstractVector, z::AbstractVector)
 
 Compute the trace-term in the collapsed ELBO. This current interface is a hack while I'm
