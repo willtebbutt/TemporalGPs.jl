@@ -43,7 +43,7 @@ function correlate(model::LGSSM, αs::AbstractVector{T}) where {T<:AbstractVecOr
     x = model.gmm.x0
     ys = Vector{T}(undef, length(model))
     xs = Vector{typeof(x)}(undef, length(model))
-    lml = zero(eltype(model))
+    lml = zeros(eltype(model), size(αs[1], 2))
 
     for t in 1:length(model)
         lml_, y, x = step_correlate(model[t], x, αs[t])
@@ -98,11 +98,11 @@ end
     S = cholesky(Symmetric(S_1))
     U = S.U
     B = U' \ V
-    α = U' \ (y .- (H * mp - h))
+    α = U' \ (y .- (H * mp .- h))
 
     mf = mp .+ B'α
     Pf = _compute_Pf(Pp, B)
-    lml = -(length(y) * T(log(2π)) + logdet(S) + α'α) / 2
+    lml = .-((length(y) * T(log(2π)) + logdet(S)) .+ α'α) ./ 2
     return mf, Pf, lml, α
 end
 
@@ -113,11 +113,11 @@ end
     V = H * Pp
     S = cholesky(Symmetric(V * H' + Σ))
     B = S.U' \ V
-    y = S.U'α .+ (H * mp + h)
+    y = S.U'α .+ (H * mp .+ h)
 
     mf = mp .+ B'α
     Pf = _compute_Pf(Pp, B)
-    lml = -(length(y) * T(log(2π)) + logdet(S) + α'α) / 2
+    lml = .-((length(y) * T(log(2π)) + logdet(S)) .+ α'α) ./ 2
     return mf, Pf, lml, y
 end
 
