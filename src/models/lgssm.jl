@@ -178,38 +178,39 @@ whiten(model::AbstractSSM, ys::AbstractVector) = decorrelate(model, ys)[2]
 _filter(model::AbstractSSM, ys::AbstractVector) = decorrelate(model, ys)[3]
 
 
+
 #
 # Things defined in terms of correlate
 #
 
-function Random.rand(rng::AbstractRNG, model::AbstractSSM)
-    return correlate(model, rand_αs(rng, model))[2] # last isn't type-stable inside AD.
-end
-
 unwhiten(model::AbstractSSM, αs::AbstractVector) = correlate(model, αs)[2]
 
-function logpdf_and_rand(rng::AbstractRNG, model::AbstractSSM)
-    lml, ys, _ = correlate(model, rand_αs(rng, model))
+function Random.rand(rng::AbstractRNG, model::AbstractSSM, ::Val{S}) where {S}
+    return correlate(model, rand_αs(rng, model, Val(S)))[2] # last isn't type-stable inside AD.
+end
+
+function Random.rand(rng::AbstractRNG, model::AbstractSSM)
+    return map(Y -> reshape(Y, :), rand(rng, model, Val(1)))
+end
+
+function logpdf_and_rand(rng::AbstractRNG, model::AbstractSSM, ::Val{S}) where {S}
+    lml, ys, _ = correlate(model, rand_αs(rng, model, Val(S)))
     return lml, ys
 end
 
-function rand_αs(rng::AbstractRNG, model::AbstractSSM)
-    D = dim_obs(model)
-    α = randn(rng, eltype(model), length(model) * D)
-    return [α[(n - 1) * D + 1:n * D] for n in 1:length(model)]
+function logpdf_and_rand(rng::AbstractRNG, model::AbstractSSM)
+    lml, Ys = correlate(model, rand_αs(rng, model, Val(1)))
+    return lml, map(Y -> reshape(Y, :), Ys)
 end
 
-function rand_αs(rng::AbstractRNG, model::LGSSM{<:GaussMarkovModel{<:AV{<:SArray}}})
-    D = dim_obs(model)
-    ot = output_type(model)
-    α = randn(rng, eltype(model), length(model) * D)
+function rand_αs(rng::AbstractRNG, model::AbstractSSM, ::Val{S}) where {S}
+    return map(_ -> randn(rng, eltype(model), dim_obs(model), S), 1:length(model))
+end
 
-    # For some type-stability reasons, we have to ensure that
-    αs = Vector{output_type(model)}(undef, length(model))
-    map(n -> setindex!(αs, ot(α[(n - 1) * D + 1:n * D]), n), 1:length(model))
-    return αs
+function rand_αs(
+    rng::AbstractRNG, model::LGSSM{<:GaussMarkovModel{<:AV{<:SArray}}}, ::Val{S},
+) where {S}
+    return map(_ -> randn(rng, SMatrix{dim_obs(model), S, eltype(model)}), 1:length(model))
 end
 
 ChainRulesCore.@non_differentiable rand_αs(::AbstractRNG, ::AbstractSSM)
-
-output_type(ft::LGSSM{<:GaussMarkovModel{<:AV{<:SArray}}}) = eltype(ft.gmm.h)

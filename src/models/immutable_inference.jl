@@ -19,7 +19,7 @@ function Stheno.marginals(model::LGSSM)
     return ys
 end
 
-function decorrelate(model::LGSSM, ys::AbstractVector{T}) where {T<:AbstractVector}
+function decorrelate(model::LGSSM, ys::AbstractVector{T}) where {T<:AbstractVecOrMat}
     @assert length(model) == length(ys)
 
     x = model.gmm.x0
@@ -37,7 +37,7 @@ function decorrelate(model::LGSSM, ys::AbstractVector{T}) where {T<:AbstractVect
     return lml, αs, xs
 end
 
-function correlate(model::LGSSM, αs::AbstractVector{T}) where {T<:AbstractVector}
+function correlate(model::LGSSM, αs::AbstractVector{T}) where {T<:AbstractVecOrMat}
     @assert length(model) == length(αs)
 
     x = model.gmm.x0
@@ -60,14 +60,18 @@ end
 # step decorrelate / correlate
 #
 
-@inline function step_decorrelate(model::NamedTuple{(:gmm, :Σ)}, x::Gaussian, y)
+@inline function step_decorrelate(
+    model::NamedTuple{(:gmm, :Σ)}, x::Gaussian, y::AbstractVecOrMat,
+)
     gmm = model.gmm
     mp, Pp = predict(x.m, x.P, gmm.A, gmm.a, gmm.Q)
     mf, Pf, lml, α = update_decorrelate(mp, Pp, gmm.H, gmm.h, model.Σ, y)
     return lml, α, Gaussian(mf, Pf)
 end
 
-@inline function step_correlate(model::NamedTuple{(:gmm, :Σ)}, x::Gaussian, α)
+@inline function step_correlate(
+    model::NamedTuple{(:gmm, :Σ)}, x::Gaussian, α::AbstractVecOrMat,
+)
     gmm = model.gmm
     mp, Pp = predict(x.m, x.P, gmm.A, gmm.a, gmm.Q)
     mf, Pf, lml, y = update_correlate(mp, Pp, gmm.H, gmm.h, model.Σ, α)
@@ -80,36 +84,38 @@ end
 # predict and update
 #
 
-@inline function predict(mf::AV{T}, Pf::AM{T}, A::AM{T}, a::AV{T}, Q::AM{T}) where {T<:Real}
-    return A * mf + a, (A * Pf) * A' + Q
+@inline function predict(
+    mf::AbstractVecOrMat{T}, Pf::AM{T}, A::AM{T}, a::AV{T}, Q::AM{T},
+) where {T<:Real}
+    return A * mf .+ a, (A * Pf) * A' + Q
 end
 
 @inline function update_decorrelate(
-    mp::AV{T}, Pp::AM{T}, H::AM{T}, h::AV{T}, Σ::AM{T}, y::AV{T},
+    mp::AV{T}, Pp::AM{T}, H::AM{T}, h::AV{T}, Σ::AM{T}, y::AbstractVecOrMat{T},
 ) where {T<:Real}
     V = H * Pp
     S_1 = V * H' + Σ
     S = cholesky(Symmetric(S_1))
     U = S.U
     B = U' \ V
-    α = U' \ (y - H * mp - h)
+    α = U' \ (y .- (H * mp - h))
 
-    mf = mp + B'α
+    mf = mp .+ B'α
     Pf = _compute_Pf(Pp, B)
     lml = -(length(y) * T(log(2π)) + logdet(S) + α'α) / 2
     return mf, Pf, lml, α
 end
 
 @inline function update_correlate(
-    mp::AV{T}, Pp::AM{T}, H::AM{T}, h::AV{T}, Σ::AM{T}, α::AV{T},
+    mp::AV{T}, Pp::AM{T}, H::AM{T}, h::AV{T}, Σ::AM{T}, α::AbstractVecOrMat{T},
 ) where {T<:Real}
 
     V = H * Pp
     S = cholesky(Symmetric(V * H' + Σ))
     B = S.U' \ V
-    y = S.U'α + (H * mp + h)
+    y = S.U'α .+ (H * mp + h)
 
-    mf = mp + B'α
+    mf = mp .+ B'α
     Pf = _compute_Pf(Pp, B)
     lml = -(length(y) * T(log(2π)) + logdet(S) + α'α) / 2
     return mf, Pf, lml, y
