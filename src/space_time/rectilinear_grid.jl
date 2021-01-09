@@ -31,3 +31,5 @@ A `SpaceTimeGrid` is a `RectilinearGrid` in which the left vector corresponds to
 the right `time`. The left eltype is arbitrary, but the right must be `Real`.
 """
 const SpaceTimeGrid{Tr, Tt<:Real} = RectilinearGrid{Tr, Tt, <:AV{Tr}, <:AV{Tt}}
+
+get_times(x::SpaceTimeGrid) = x.xr

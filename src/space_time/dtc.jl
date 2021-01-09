@@ -33,13 +33,13 @@ function GaussMarkovModel(k_dtc::DTCSeparable, x::SpaceTimeGrid, storage)
 
     # G is the time-invariant component of the H-matrices. It is only time-invariant because
     # we have the same obsevation locations at each point in time.
-    G = kron(K_space_xz / cholesky(Symmetric(K_space_z + 1e-9I)), ident_D)
+    Cfu_Λu = K_space_xz / cholesky(Symmetric(K_space_z + 1e-9I))
 
     # Construct approximately low-rank model spatio-temporal LGSSM.
     A = map(A -> kron(ident_M, A), gmm_time.A)
     a = map(a -> repeat(a, M), gmm_time.a)
     Q = map(Q -> kron(K_space_z, Q), gmm_time.Q)
-    H = map(H -> kron(ident_N, H) * G, gmm_time.H) # This is currently O(N^2).
+    H = map(H -> kron(Cfu_Λu, H), gmm_time.H) # This is currently O(N^2).
     h = map(h -> repeat(h, N), gmm_time.h) # This should currently be zero.
     x = Gaussian(
         repeat(gmm_time.x0.m, M),

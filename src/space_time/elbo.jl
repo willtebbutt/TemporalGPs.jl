@@ -9,7 +9,7 @@
 
 This is a bodge while I improve the API generally.
 """
-function elbo(
+function Stheno.elbo(
     k::Separable,
     x::AbstractVector,
     y::AbstractVector,
@@ -108,4 +108,87 @@ function time_marginal(gmm::GaussMarkovModel)
         marginals[t] = Gaussian(mt, Pt)
     end
     return marginals
+end
+
+"""
+    optimal_approximate_posterior_marginals(
+        k::Separable,
+        x::AbstractVector,
+        y::AbstractVector,
+        z::AbstractVector,
+        S::AbstractVector,
+        r_pred::AbstractVector,
+    )
+
+This is very ugly and assumes that you want to make predictions at the same locations in
+space at each point in time.
+"""
+function optimal_approximate_posterior_marginals(
+    k::Separable,
+    x::AbstractVector,
+    y::AbstractVector,
+    z::AbstractVector,
+    S::AbstractVector,
+    r_pred::AbstractVector,
+)
+    # Construct low-rank DTC model.
+    f = to_sde(GP(DTCSeparable(z, k), GPC()))
+
+    # Compute approximate posterior marginals over pseudo-points.
+    ū_smooth = smooth_latents(f(x, S), y)
+
+    # Compute cross-covariance between target points and pseudo-points.
+    space_kernel = k.l
+    C_fp_u = Stheno.pairwise(space_kernel, r_pred, z)
+    C_u = cholesky(Symmetric(Stheno.pairwise(space_kernel, z)))
+    C_fp_u_Λ_u = C_fp_u / C_u
+    Cr_rpred_diag = Stheno.elementwise(space_kernel, r_pred)
+
+    # Obtain the projections required to get u from ū.
+    time_kernel = k.r
+    ts = get_times(x)
+    gmm = GaussMarkovModel(time_kernel, ts, ArrayStorage(Float64))
+    ident = Matrix{Float64}(I, length(z), length(z))
+
+    # Compute the approximate posterior marginals.
+    return map(eachindex(ū_smooth)) do n
+        Hu = kron(ident, gmm.H[n])
+        C_fp_u_Λ_u_Hu = C_fp_u_Λ_u * Hu
+
+        # Compute approx. post mean.
+        m = C_fp_u_Λ_u_Hu * ū_smooth[n].m
+
+        # Compute approx. post variance.
+        ct = only(Stheno.ew(time_kernel, [ts[n]]))
+
+        conditioning_term = (Cr_rpred_diag - Stheno.diag_Xt_invA_X(C_u, C_fp_u')) * ct
+        inflation_term = Stheno.diag_Xt_A_X(
+            cholesky(Symmetric(ū_smooth[n].P)), C_fp_u_Λ_u_Hu',
+        )
+        s = conditioning_term + inflation_term
+        return Normal.(m, sqrt.(s))
+    end
+end
+
+function smooth_latents(model::LGSSM, ys::AbstractVector)
+
+    lml, x_filter = filter(model, ys)
+    ε = convert(eltype(model), 1e-12)
+
+    # Smooth
+    x_smooth = Vector{typeof(last(x_filter))}(undef, length(ys))
+    x_smooth[end] = x_filter[end]
+    for k in reverse(1:length(x_filter) - 1)
+        x = x_filter[k]
+        x′ = predict(model[k + 1], x)
+
+        U = cholesky(Symmetric(x′.P + ε * I)).U
+        Gt = U \ (U' \ (model.gmm.A[k + 1] * x.P))
+        x_smooth[k] = Gaussian(
+            _compute_ms(x.m, Gt, x_smooth[k + 1].m, x′.m),
+            _compute_Ps(x.P, Gt, x_smooth[k + 1].P, x′.P),
+        )
+    end
+
+    return x_smooth
 end

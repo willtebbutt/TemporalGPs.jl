@@ -36,3 +36,5 @@ function match_to(y::AbstractVector{T}, x::RegularInTime) where {T}
     end
     return y_vec
 end
+
+get_times(x::RegularInTime) = x.ts
