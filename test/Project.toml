@@ -1,6 +1,7 @@
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 BlockDiagonals = "0a1fb500-61f7-11e9-3c65-f5ef3456f9f0"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
 FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
 Kronecker = "2c470bb0-bcc8-11e8-3dad-c9649493f05e"
@@ -14,4 +15,5 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 BenchmarkTools = "0.5"
+Documenter = "0.23, 0.25"
 FiniteDifferences = "0.11"
