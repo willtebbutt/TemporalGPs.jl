@@ -1,23 +1,55 @@
+#
+# Types for defining the order in which things should be traversed.
+#
+
+struct Forward end
+
+struct Reverse end
+
+# For some reason, this is necessary for printing. I don't really understand it.
+Base.length(::Union{Forward, Reverse}) = 0
+
+Base.reverse(::Forward) = Reverse()
+Base.reverse(::Reverse) = Forward()
+
+
+
+#
+# Linear Gaussian State Space Models
+#
+
+
 abstract type AbstractLGSSM end
 
 """
-    LGSSM{Ttransitions<:GaussMarkovModel, Temissions<:StructArray} <: AbstractLGSSM
+    LGSSM{
+        Tordering<:Union{Forward, Reverse},
+        Ttransitions<:StructArray,
+        Temissions<:StructArray,
+        x0<:Gaussian,
+    } <: AbstractLGSSM
 
-A linear-Gaussian state-space model. Represented in terms of a Gauss-Markov model
-`transitions` and collection of emission dynamics `emissions`.
+A linear-Gaussian state-space model. Represented in terms of a vector of transition dynamics
+`transitions`, and collection of emission dynamics `emissions` of the same length.
+
+Initial state `x0` -- whether model should be traversed in forwards or reverse order
+depends upon `ordering`.
 """
-struct LGSSM{Ttransitions<:GaussMarkovModel, Temissions<:StructArray} <: AbstractLGSSM
+struct LGSSM{
+    Tordering<:Union{Forward, Reverse},
+    Ttransitions<:StructArray,
+    Temissions<:StructArray,
+    x0<:Gaussian,
+} <: AbstractLGSSM
+    ordering::Tordering
     transitions::Ttransitions
     emissions::Temissions
+    x0::Tx0
 end
 
-@inline function transitions(model::LGSSM)
-    return Zygote.literal_getfield(model, Val(:transitions))
-end
+@inline transitions(model::LGSSM) = Zygote.literal_getfield(model, Val(:transitions))
 
-@inline function emissions(model::LGSSM)
-    return Zygote.literal_getfield(model, Val(:emissions))
-end
+@inline emissions(model::LGSSM) = Zygote.literal_getfield(model, Val(:emissions))
 
 @inline ordering(model::LGSSM) = ordering(transitions(model))
 
@@ -203,11 +235,17 @@ end
 # Construct the posterior model.
 
 function posterior(prior::LGSSM, y::AbstractVector)
-    new_trans, xf = _a_bit_of_posterior(prior, y)
+    new_trans_elements, xf = _a_bit_of_posterior(prior, y)
     A = map(x -> x.A, new_trans)
     a = map(x -> x.a, new_trans)
     Q = map(x -> x.Q, new_trans)
-    return LGSSM(GaussMarkovModel(reverse(ordering(prior)), A, a, Q, xf), prior.emissions)
+    throw(error("Not sure what we're doing here..."))
+    # Possibly we need to abstract `LGSSM` a bit more to allow for _actual_ vectors of
+    # things to be utilised? It would certainly avoid the need to do all of this
+    # book-keeping work...
+    new_transitions = Structarray(new_trans_elements)
+    return LGSSM(reverse(ordering(prior)), new_transitions, prior.emissions, xf)
+    # return LGSSM(GaussMarkovModel(reverse(ordering(prior)), A, a, Q, xf), prior.emissions)
 end
 
 function _a_bit_of_posterior(prior, y)
