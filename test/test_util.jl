@@ -4,7 +4,6 @@ using TemporalGPs:
     harmonise,
     Forward,
     Reverse,
-    GaussMarkovModel,
     LGSSM,
     ordering,
     SmallOutputLGC,
@@ -187,20 +186,6 @@ to_vec(::Nothing) = Bool[], _ -> nothing
         @test model_vec isa Vector{<:Real}
         @test model_from_vec(model_vec) == model
     end
-    @testset "to_vec(::GaussMarkovModel)" begin
-        N = 11
-        A = [randn(2, 2) for _ in 1:N]
-        a = [randn(2) for _ in 1:N]
-        Q = [randn(2, 2) for _ in 1:N]
-        H = [randn(3, 2) for _ in 1:N]
-        h = [randn(3) for _ in 1:N]
-        x0 = TemporalGPs.Gaussian(randn(2), randn(2, 2))
-        gmm = TemporalGPs.GaussMarkovModel(Forward(), A, a, Q, x0)
-
-        gmm_vec, gmm_from_vec = to_vec(gmm)
-        @test gmm_vec isa Vector{<:Real}
-        @test gmm_from_vec(gmm_vec) == gmm
-    end
     @testset "StructArray" begin
         x = StructArray([Gaussian(randn(2), randn(2, 2)) for _ in 1:10])
         x_vec, x_from_vec = to_vec(x)
@@ -214,14 +199,15 @@ to_vec(::Nothing) = Bool[], _ -> nothing
         A = [randn(2, 2) for _ in 1:N]
         a = [randn(2) for _ in 1:N]
         Q = [randn(2, 2) for _ in 1:N]
+        transitions = StructArray(map(SmallOutputLGC, A, a, Q))
         x0 = Gaussian(randn(2), randn(2, 2))
-        gmm = GaussMarkovModel(Forward(), A, a, Q, x0)
 
         # Build LGSSM.
         H = [randn(3, 2) for _ in 1:N]
         h = [randn(3) for _ in 1:N]
         Σ = [randn(3, 3) for _ in 1:N]
-        model = TemporalGPs.LGSSM(gmm, StructArray(map(SmallOutputLGC, H, h, Σ)))
+        emissions = StructArray(map(SmallOutputLGC, H, h, Σ))
+        model = TemporalGPs.LGSSM(Forward(), transitions, emissions, x0)
 
         model_vec, model_from_vec = to_vec(model)
         @test model_from_vec(model_vec) == model
