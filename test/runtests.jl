@@ -36,7 +36,6 @@ include("test_util.jl")
     include(joinpath("models", "test_model_test_utils.jl"))
     @testset "models" begin
         include(joinpath("models", "linear_gaussian_conditionals.jl"))
-        include(joinpath("models", "gauss_markov_model.jl"))
         include(joinpath("models", "lgssm.jl"))
         include(joinpath("models", "missings.jl"))
     end
